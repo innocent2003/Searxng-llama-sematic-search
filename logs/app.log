@@ -1,0 +1,79 @@
+2026-11-02 03:51:16,137 INFO HTTP Request: GET http://searxng:8080/search?q=health+check&format=json&language=all "HTTP/1.1 200 OK"
+2026-11-02 03:51:35,993 INFO HTTP Request: GET http://searxng:8080/search?q=health+check&format=json&language=all "HTTP/1.1 200 OK"
+2026-11-02 03:51:56,037 INFO HTTP Request: GET http://searxng:8080/search?q=health+check&format=json&language=all "HTTP/1.1 200 OK"
+2026-11-02 03:52:57,804 ERROR Question answering failed
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/httpx/_transports/default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "/usr/local/lib/python3.12/site-packages/httpx/_transports/default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/httpcore/_async/connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "/usr/local/lib/python3.12/site-packages/httpcore/_async/connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/httpcore/_async/connection.py", line 101, in handle_async_request
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/httpcore/_async/connection.py", line 78, in handle_async_request
+    stream = await self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/httpcore/_async/connection.py", line 124, in _connect
+    stream = await self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/httpcore/_backends/auto.py", line 31, in connect_tcp
+    return await self._backend.connect_tcp(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/httpcore/_backends/anyio.py", line 113, in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/usr/local/lib/python3.12/site-packages/httpcore/_exceptions.py", line 14, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore.ConnectError: All connection attempts failed
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/app/app/main.py", line 265, in ask
+    answer = await ollama_generate(prompt)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app/services.py", line 161, in ollama_generate
+    response = await client.post(
+               ^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/httpx/_client.py", line 1859, in post
+    return await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/httpx/_client.py", line 1540, in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/httpx/_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/httpx/_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/httpx/_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/httpx/_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/httpx/_transports/default.py", line 393, in handle_async_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/usr/local/lib/python3.12/site-packages/httpx/_transports/default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.ConnectError: All connection attempts failed
+2026-11-02 03:52:59,538 INFO HTTP Request: GET http://searxng:8080/search?q=health+check&format=json&language=all "HTTP/1.1 200 OK"
+2026-11-02 03:53:16,953 INFO HTTP Request: GET http://searxng:8080/search?q=health+check&format=json&language=all "HTTP/1.1 200 OK"
+2026-11-02 03:53:25,493 INFO HTTP Request: GET http://host.docker.internal:11434/api/tags "HTTP/1.1 200 OK"
+2026-11-02 03:53:26,374 INFO HTTP Request: GET http://searxng:8080/search?q=health+check&format=json&language=all "HTTP/1.1 200 OK"
+2026-11-02 03:55:18,823 INFO HTTP Request: POST http://host.docker.internal:11434/api/generate "HTTP/1.1 200 OK"
+2026-11-02 03:57:35,034 INFO HTTP Request: GET http://host.docker.internal:11434/api/tags "HTTP/1.1 200 OK"
+2026-11-02 03:57:36,756 INFO HTTP Request: GET http://searxng:8080/search?q=health+check&format=json&language=all "HTTP/1.1 200 OK"
+2026-11-02 03:57:59,205 INFO HTTP Request: GET http://searxng:8080/search?q=t%C3%ACnh+h%C3%ACnh+%C4%91%E1%BA%A5t+n%C6%B0%E1%BB%9Bc+vi%E1%BB%87t+nam+n%C4%83m+2026%0A&format=json&language=all "HTTP/1.1 200 OK"
+2026-11-02 03:59:08,602 INFO HTTP Request: POST http://host.docker.internal:11434/api/generate "HTTP/1.1 200 OK"

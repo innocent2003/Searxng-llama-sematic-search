@@ -1,229 +1,113 @@
-# SearXNG Docker Compose — MITRE Clone
+# Trợ lý tri thức Qwen + SearXNG
 
-## 1. Thông tin triển khai
+Ứng dụng FastAPI cung cấp giao diện tiếng Việt để hỏi Qwen, tìm kiếm bằng
+SearXNG, nạp URL và cập nhật kho tri thức RAG. FastAPI, SearXNG và Valkey
+chạy trong Docker Compose; ứng dụng kết nối tới Ollama đang chạy trên máy
+Windows. Chỉ giao diện được mở trên máy ở
+`http://localhost:8081`.
 
-- **Thư mục dự án:** `D:\MitreClone`
-- **Triển khai:** Docker Compose
-- **Dịch vụ:** SearXNG và Valkey
-- **Địa chỉ truy cập:** http://localhost:8080
-- **Phạm vi lắng nghe:** `127.0.0.1:8080` (chỉ truy cập từ máy Windows này)
-- **File Compose:** `D:\MitreClone\docker-compose.yml`
-- **File biến môi trường:** `D:\MitreClone\.env`
-- **File cấu hình SearXNG:** `D:\MitreClone\config\settings.yml`
+## Khởi chạy
 
-> Ghi chú: Tài liệu này ghi lại cấu hình đã soạn trong hướng dẫn. Hãy chạy các lệnh kiểm tra ở phần 7 để xác nhận trạng thái thực tế trên máy.
-
-## 2. Cấu trúc thư mục
-
-```text
-D:\MitreClone\
-├── docker-compose.yml
-├── .env
-├── config\
-│   └── settings.yml
-├── cache\
-└── valkey\
-```
-
-- `config\settings.yml`: cấu hình SearXNG.
-- `cache\`: thư mục cache được mount vào container SearXNG.
-- `valkey\`: dữ liệu Valkey.
-- `.env`: chứa khóa bí mật `SEARXNG_SECRET`. Không chia sẻ file này hoặc đưa vào Git.
-
-## 3. Docker Compose
-
-Nội dung `D:\MitreClone\docker-compose.yml`:
-
-```yaml
-services:
-  searxng:
-    image: searxng/searxng:latest
-    container_name: searxng
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:8080:8080"
-    environment:
-      SEARXNG_SECRET: "${SEARXNG_SECRET}"
-      SEARXNG_BASE_URL: "http://localhost:8080/"
-      SEARXNG_VALKEY_URL: "valkey://valkey:6379/0"
-    volumes:
-      - ./config:/etc/searxng
-      - ./cache:/var/cache/searxng
-    depends_on:
-      - valkey
-
-  valkey:
-    image: valkey/valkey:9-alpine
-    container_name: searxng-valkey
-    restart: unless-stopped
-    command: valkey-server --save 60 1 --loglevel warning
-    volumes:
-      - ./valkey:/data
-```
-
-### Lưu ý về cấu hình bí mật
-
-Compose truyền `SEARXNG_SECRET` từ `.env` vào container. Trong `settings.yml`, trường `server.secret_key` cũng cần được đặt thành **cùng giá trị**. Không ghi khóa bí mật thật vào tài liệu này hoặc kho mã nguồn.
-
-## 4. Biến môi trường `.env`
-
-File `D:\MitreClone\.env` có dạng:
-
-```dotenv
-SEARXNG_SECRET=<khóa-ngẫu-nhiên-64-ký-tự-hex>
-```
-
-Tạo hoặc tạo lại khóa bằng PowerShell (chạy tại `D:\MitreClone`):
+Yêu cầu Docker Desktop và Docker Compose. Nếu chưa có `.env`, tạo khóa ngẫu
+nhiên trong PowerShell:
 
 ```powershell
 $bytes = New-Object byte[] 32
 $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
 $rng.GetBytes($bytes)
 $rng.Dispose()
-
 $secret = -join ($bytes | ForEach-Object { $_.ToString("x2") })
 "SEARXNG_SECRET=$secret" | Set-Content -Encoding ascii .env
 ```
 
-**Cảnh báo:** Chỉ tạo lại khóa khi chủ động muốn đổi khóa. Sau khi đổi, hãy cập nhật `server.secret_key` trong `config\settings.yml` bằng cùng giá trị rồi khởi động lại dịch vụ.
+Giá trị `SEARXNG_SECRET` trong `.env` phải khớp với `server.secret_key` trong
+`config/settings.yml`. Không commit hoặc chia sẻ `.env`.
 
-## 5. Cấu hình SearXNG
-
-File `D:\MitreClone\config\settings.yml`:
-
-```yaml
-use_default_settings: true
-
-general:
-  debug: false
-  instance_name: "SearXNG Local"
-
-search:
-  safe_search: 0
-  formats:
-    - html
-    - json
-
-server:
-  secret_key: "THAY_BANG_GIA_TRI_SEARXNG_SECRET"
-  limiter: false
-  image_proxy: true
-
-valkey:
-  url: valkey://valkey:6379/0
-```
-
-Thay `THAY_BANG_GIA_TRI_SEARXNG_SECRET` bằng giá trị `SEARXNG_SECRET` trong `.env`.
-
-- `formats: json` bật định dạng JSON cho API tìm kiếm.
-- `limiter: false` thuận tiện cho thử nghiệm local nhưng không phù hợp khi mở dịch vụ ra Internet.
-- `safe_search: 0` không lọc kết quả theo chế độ Safe Search. Điều chỉnh nếu cần.
-- Valkey dùng URL nội bộ Docker `valkey://valkey:6379/0`.
-
-## 6. Cài đặt và vận hành
-
-Mở PowerShell:
+Từ thư mục dự án trong PowerShell:
 
 ```powershell
-Set-Location D:\MitreClone
-
-# Kiểm tra cú pháp và cấu hình Compose
-docker compose config
-
-# Tải image
-docker compose pull
-
-# Tạo và khởi chạy dịch vụ
-docker compose up -d
-
-# Xem trạng thái
+docker compose config -q
+docker compose up -d --build
 docker compose ps
 ```
 
-### Các lệnh quản trị thường dùng
+Đảm bảo Ollama trên Windows đang chạy và đã có các model ứng dụng sử dụng.
+Nếu thiếu model, tải chúng bằng PowerShell:
 
 ```powershell
-# Xem log SearXNG
+ollama pull qwen3:8b
+ollama pull nomic-embed-text
+```
+
+Mở `http://localhost:8081`. FastAPI kết nối tới Ollama qua
+`host.docker.internal:11434`, giữ nguyên Ollama và các model đã cài trên máy.
+
+## Sử dụng giao diện
+
+- **Trạng thái dịch vụ:** kiểm tra kết nối tới FastAPI, SearXNG, Ollama và kho
+  vector. Danh sách model hiện trong Ollama giúp xác nhận Qwen đã được tải.
+- **Hỏi đáp tri thức:** nhập câu hỏi; có thể bật tìm kiếm web để kết hợp nguồn
+  SearXNG với tài liệu đã nạp.
+- **Nạp URL:** tải một trang web công khai, tóm tắt bằng Qwen, tạo embedding và
+  lưu vào kho RAG.
+- **Cập nhật từ SearXNG:** nhập một chủ đề trên mỗi dòng; để trống để dùng các
+  chủ đề mặc định. Kết quả tìm kiếm được thu thập và thêm vào kho tri thức.
+- **Tài liệu trong kho:** xem tài liệu đã nạp, tóm tắt và thời gian cập nhật.
+
+## Cấu hình
+
+Có thể đặt các biến sau trong `.env` để thay đổi mặc định:
+
+```dotenv
+CHAT_MODEL=qwen3:8b
+EMBED_MODEL=nomic-embed-text
+UPDATE_QUERIES=AI research news;Python release notes;cybersecurity news
+```
+
+`UPDATE_QUERIES` phân cách các chủ đề mặc định bằng dấu chấm phẩy. Có thể đổi
+model bằng tên model Ollama khác, nhưng cần tải model đó trước. Sau khi đổi
+cấu hình, áp dụng bằng `docker compose up -d`.
+
+Ứng dụng kết nối SearXNG và Ollama qua tên dịch vụ nội bộ `searxng` và
+`host.docker.internal`. SearXNG chỉ dùng cổng nội bộ Docker 8080; giao diện
+FastAPI dùng cổng máy chủ 8081. Dữ liệu SQLite, Chroma và log được lưu trong
+`knowledge/` và `logs/`; model Ollama tiếp tục được lưu bởi cài đặt Ollama
+trên máy.
+
+## API
+
+- `GET /api/health` — trạng thái dịch vụ và số đoạn trong kho vector.
+- `POST /api/search` — tìm kiếm web.
+- `POST /api/ingest/url` — nạp một URL.
+- `POST /api/update` — tìm và nạp nội dung theo chủ đề.
+- `POST /api/ask` — hỏi đáp RAG, tùy chọn kết hợp tìm kiếm web.
+- `GET /api/documents` — danh sách tài liệu và thống kê.
+
+Ví dụ cập nhật tri thức:
+
+```powershell
+Invoke-RestMethod `
+  -Uri "http://localhost:8081/api/update" `
+  -Method Post `
+  -ContentType "application/json" `
+  -Body '{"queries":["Qwen release news","FastAPI documentation"],"results_per_query":3}'
+```
+
+## Vận hành và xử lý sự cố
+
+```powershell
+docker compose logs --tail=100 app
 docker compose logs --tail=100 searxng
-
-# Xem log Valkey
-docker compose logs --tail=50 valkey
-
-# Theo dõi log liên tục
-docker compose logs -f
-
-# Khởi động lại dịch vụ
-docker compose restart
-
-# Dừng dịch vụ nhưng giữ container
-docker compose stop
-
-# Khởi chạy lại
-docker compose up -d
-
-# Tải image mới và áp dụng
-docker compose pull
-docker compose up -d
-
-# Xóa container/network do Compose tạo (giữ các thư mục bind mount)
-docker compose down
+docker compose logs --tail=100 ollama
+docker compose restart app
 ```
 
-Không dùng `docker compose down -v` nếu không muốn xóa các Docker volume được quản lý bởi Compose. Các thư mục bind mount `config`, `cache` và `valkey` trong dự án vẫn nằm trên ổ D.
-
-## 7. Kiểm tra hoạt động
-
-### 7.1 Kiểm tra Docker
-
-```powershell
-docker --version
-docker compose version
-docker compose ps
-```
-
-### 7.2 Kiểm tra giao diện web
-
-Mở trình duyệt:
-
-http://localhost:8080
-
-### 7.3 Kiểm tra API JSON
-
-```powershell
-$response = Invoke-RestMethod `
-  -Uri "http://localhost:8080/search?q=MITRE+ATT%26CK&format=json"
-
-$response.results |
-  Select-Object -First 5 title, url, content |
-  Format-List
-```
-
-Nếu API trả về danh sách kết quả có tiêu đề và URL, API JSON hoạt động. Nếu bị lỗi, kiểm tra log SearXNG và `settings.yml`.
-
-## 8. Xử lý sự cố
-
-| Triệu chứng | Kiểm tra / xử lý |
-|---|---|
-| Container thoát hoặc restart liên tục | `docker compose logs --tail=100 searxng` |
-| Không mở được `localhost:8080` | `docker compose ps`; kiểm tra cổng 8080 có bị ứng dụng khác chiếm không |
-| API không trả JSON | Kiểm tra `search.formats` có mục `json` |
-| Lỗi khóa bí mật | Xác nhận `SEARXNG_SECRET` và `server.secret_key` trùng nhau |
-| Không có kết quả tìm kiếm | Kiểm tra Internet, thử truy vấn khác và xem log |
-| Valkey không hoạt động | `docker compose logs --tail=100 valkey`; kiểm tra URL nội bộ |
-
-## 9. Bảo mật và lưu ý
-
-- Cổng web được bind vào `127.0.0.1`, không công khai trực tiếp trên mạng LAN.
-- Không commit `.env` vào Git. Thêm `.env` vào `.gitignore` nếu thư mục này là kho Git.
-- Không nên dùng `limiter: false` khi mở dịch vụ ra ngoài máy local.
-- `latest` và `9-alpine` có thể trỏ tới image mới theo thời gian. Khi cần triển khai ổn định, cân nhắc pin phiên bản cụ thể đã kiểm thử.
-- Chạy SearXNG không tự động tích hợp với Ollama hoặc OpenCode; cần cấu hình MCP/tích hợp tương thích riêng.
-
-## 10. Checklist sau cài đặt
-
-- [ ] `docker compose config` chạy không lỗi.
-- [ ] Container `searxng` và `searxng-valkey` đang chạy.
-- [ ] Mở được `http://localhost:8080`.
-- [ ] API `/search?q=test&format=json` trả về JSON.
-- [ ] `server.secret_key` khớp với `SEARXNG_SECRET`.
-- [ ] `.env` không được đưa lên Git.
+- Nếu giao diện không mở được, kiểm tra cổng 8081 có bị ứng dụng khác sử dụng
+  không và xem `docker compose ps`.
+- Nếu trạng thái Ollama báo lỗi, xác nhận Ollama trên Windows đang chạy và
+  Docker có thể kết nối tới `host.docker.internal:11434`. Nếu model chưa có,
+  chạy hai lệnh `ollama pull` ở phần khởi chạy.
+- Nếu SearXNG báo lỗi, xác nhận `SEARXNG_SECRET` khớp với
+  `server.secret_key` và xem log container.
+- `docker compose down` dừng và xóa container nhưng giữ dữ liệu trong thư mục
+  dự án; model Ollama vẫn nằm trong cài đặt trên máy.

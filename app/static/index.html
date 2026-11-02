@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knowledge Assistant</title>
+<style>
+body {
+  font: 16px system-ui, sans-serif;
+  max-width: 1000px;
+  margin: 30px auto;
+  padding: 0 16px;
+  background: #f4f6fa;
+  color: #172033;
+}
+h1 { margin-bottom: 4px; }
+h1 + p { color: #53627a; margin-top: 0; }
+.panel {
+  background: white;
+  padding: 20px;
+  border: 1px solid #dce2ec;
+  border-radius: 12px;
+  margin-bottom: 18px;
+}
+input, textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  margin: 8px 0;
+  border: 1px solid #c6ceda;
+  border-radius: 8px;
+  font: inherit;
+}
+input[type="checkbox"] { width: auto; }
+button {
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 7px;
+  background: #2457a7;
+  color: white;
+  cursor: pointer;
+  margin: 5px 4px 5px 0;
+}
+button:disabled { opacity: .6; cursor: wait; }
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #f1f4f8;
+  padding: 12px;
+  border-radius: 8px;
+}
+.source {
+  border-bottom: 1px solid #ddd;
+  padding: 10px 0;
+}
+.service { padding: 5px 0; }
+.ok { color: #187847; }
+.error { color: #b42318; }
+a { overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+
+<h1>Trợ lý tri thức</h1>
+<p>SearXNG · Qwen · RAG</p>
+
+<section class="panel">
+<h2>Trạng thái dịch vụ</h2>
+<button onclick="health()">Kiểm tra dịch vụ</button>
+<div id="services">Đang kiểm tra...</div>
+</section>
+
+<section class="panel">
+<h2>Hỏi đáp tri thức</h2>
+<textarea id="question" rows="3"
+ placeholder="Nhập câu hỏi..."></textarea>
+
+<label>
+<input id="web" type="checkbox" checked style="width:auto">
+ Kết hợp tìm kiếm web
+</label>
+
+<br>
+<button onclick="ask()">Hỏi Qwen</button>
+<div id="answer"></div>
+<div id="sources"></div>
+</section>
+
+<section class="panel">
+<h2>Tìm kiếm Internet</h2>
+<input id="query" placeholder="Từ khóa tìm kiếm">
+<button onclick="searchWeb()">Tìm kiếm</button>
+<div id="results"></div>
+</section>
+
+<section class="panel">
+<h2>Nạp URL vào kho tri thức</h2>
+<input id="url" placeholder="https://example.com/article">
+<button onclick="ingest()">Thu thập URL</button>
+<h3>Cập nhật từ SearXNG</h3>
+<textarea id="updateQueries" rows="3"
+ placeholder="Mỗi dòng là một chủ đề tìm kiếm. Để trống sẽ dùng chủ đề mặc định."></textarea>
+<button onclick="updateKnowledge()">Tìm và cập nhật tri thức</button>
+<div id="updateResult"></div>
+</section>
+
+<section class="panel">
+<h2>Tài liệu trong kho</h2>
+<button onclick="loadDocuments()">Làm mới</button>
+<div id="documents"></div>
+</section>
+
+<script>
+async function api(path, body) {
+  const response = await fetch(path, {
+    method: body ? "POST" : "GET",
+    headers: body ? {"Content-Type": "application/json"} : {},
+    body: body ? JSON.stringify(body) : undefined
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || response.statusText);
+  }
+
+  return data;
+}
+
+function el(id) {
+  return document.getElementById(id);
+}
+
+function safe(value) {
+  const div = document.createElement("div");
+  div.textContent = String(value ?? "");
+  return div.innerHTML;
+}
+
+function renderSources(items) {
+  return items.map(item =>
+    `<div class="source">
+      <a href="${safe(item.url)}" target="_blank"
+         rel="noopener noreferrer">${safe(item.title || item.url)}</a>
+    </div>`
+  ).join("");
+}
+
+async function ask() {
+  el("answer").textContent = "Đang xử lý...";
+  el("sources").textContent = "";
+
+  try {
+    const data = await api("/api/ask", {
+      question: el("question").value,
+      web_search: el("web").checked,
+      top_k: 5
+    });
+
+    el("answer").innerHTML = "<pre>" + safe(data.answer) + "</pre>";
+
+    el("sources").innerHTML =
+      "<h3>Nguồn RAG</h3>" +
+      renderSources(data.rag_sources) +
+      "<h3>Nguồn web</h3>" +
+      renderSources(data.web_sources);
+  } catch (error) {
+    el("answer").textContent = "Lỗi: " + error.message;
+  }
+}
+
+async function searchWeb() {
+  el("results").textContent = "Đang tìm kiếm...";
+
+  try {
+    const data = await api("/api/search", {
+      query: el("query").value,
+      limit: 10
+    });
+
+    el("results").innerHTML = data.results.map(item =>
+      `<div class="source">
+        <a href="${safe(item.url)}" target="_blank"
+           rel="noopener noreferrer">${safe(item.title)}</a>
+        <p>${safe(item.content)}</p>
+      </div>`
+    ).join("");
+  } catch (error) {
+    el("results").textContent = error.message;
+  }
+}
+
+async function ingest() {
+  el("updateResult").textContent = "Đang thu thập...";
+
+  try {
+    const data = await api("/api/ingest/url", {
+      url: el("url").value
+    });
+
+    el("updateResult").textContent = JSON.stringify(data, null, 2);
+    loadDocuments();
+  } catch (error) {
+    el("updateResult").textContent = "Lỗi: " + error.message;
+  }
+}
+
+async function updateKnowledge() {
+  el("updateResult").textContent =
+    "Đang cập nhật. Lần chạy đầu có thể mất nhiều thời gian...";
+
+  try {
+    const queries = el("updateQueries").value
+      .split("\n")
+      .map(query => query.trim())
+      .filter(Boolean);
+    const data = await api("/api/update", {queries});
+    el("updateResult").textContent = JSON.stringify(data, null, 2);
+    loadDocuments();
+  } catch (error) {
+    el("updateResult").textContent = "Lỗi: " + error.message;
+  }
+}
+
+async function health() {
+  try {
+    const data = await api("/api/health");
+    const status = (name, available, detail = "") =>
+      `<div class="service ${available ? "ok" : "error"}">
+        ${safe(name)}: ${available ? "Đang hoạt động" : "Không kết nối"}
+        ${detail ? ` — ${safe(detail)}` : ""}
+      </div>`;
+    el("services").innerHTML =
+      status("FastAPI", true) +
+      status("SearXNG", data.searxng, data.searxng_error || "") +
+      status(
+        "Ollama / Qwen",
+        data.ollama,
+        data.ollama
+          ? `Model: ${(data.models || []).join(", ") || "chưa tải model"}`
+          : data.ollama_error || ""
+      ) +
+      (data.chroma_count === undefined
+        ? status("Kho vector", false, data.chroma_error || "")
+        : status("Kho vector", true, `${data.chroma_count} đoạn tri thức`));
+  } catch (error) {
+    el("services").textContent = "Lỗi: " + error.message;
+  }
+}
+
+async function loadDocuments() {
+  try {
+    const data = await api("/api/documents");
+
+    el("documents").innerHTML =
+      `<p>${data.stats.documents} tài liệu · ` +
+      `${data.stats.jobs} tác vụ</p>` +
+      data.documents.map(item =>
+        `<div class="source">
+          <b>${safe(item.title)}</b><br>
+          <a href="${safe(item.url)}" target="_blank"
+             rel="noopener noreferrer">${safe(item.url)}</a>
+          <p>${safe(item.summary)}</p>
+          <small>${safe(item.fetched_at)}</small>
+        </div>`
+      ).join("");
+  } catch (error) {
+    el("documents").textContent = error.message;
+  }
+}
+
+health();
+loadDocuments();
+</script>
+</body>
+</html>

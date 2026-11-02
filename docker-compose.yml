@@ -4,12 +4,10 @@ services:
     image: searxng/searxng:latest
     container_name: searxng
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:8080:8080"
     environment:
       SEARXNG_SECRET: "${SEARXNG_SECRET}"
       SEARXNG_VALKEY_URL: "valkey://valkey:6379/0"
-      SEARXNG_BASE_URL: "http://localhost:8080/"
+      SEARXNG_BASE_URL: "http://searxng:8080/"
       UWSGI_WORKERS: "2"
       UWSGI_THREADS: "4"
     volumes:
@@ -17,6 +15,27 @@ services:
       - ./cache:/var/cache/searxng
     depends_on:
       - valkey
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8081:8000"
+    environment:
+      SEARXNG_URL: "http://searxng:8080"
+      OLLAMA_URL: "http://host.docker.internal:11434"
+      CHAT_MODEL: "${CHAT_MODEL:-qwen3:8b}"
+      EMBED_MODEL: "${EMBED_MODEL:-nomic-embed-text}"
+      UPDATE_QUERIES: "${UPDATE_QUERIES:-latest technology news;Python release notes;AI research news;cybersecurity news;climate science news}"
+      DATA_DIR: "/app/data"
+      LOG_DIR: "/app/logs"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./knowledge:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - searxng
 
   valkey:
     image: valkey/valkey:9-alpine
